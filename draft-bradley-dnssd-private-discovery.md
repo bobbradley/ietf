@@ -1,15 +1,15 @@
 % # To convert this file to text and HTML:
-% # mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-00.xml
-% # xml2rfc --text draft-bradley-dnssd-private-discovery-00.xml -o draft-bradley-dnssd-private-discovery-00.txt
-% # xml2rfc --html draft-bradley-dnssd-private-discovery-00.xml -o draft-bradley-dnssd-private-discovery-00.html
+% # mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-01.xml
+% # xml2rfc --text draft-bradley-dnssd-private-discovery-01.xml -o draft-bradley-dnssd-private-discovery-01.txt
+% # xml2rfc --html draft-bradley-dnssd-private-discovery-01.xml -o draft-bradley-dnssd-private-discovery-01.html
 % # 
 % Title			= "Private Discovery"
 % category		= "std"
 % are			= "Internet"
 % workgroup		= "Internet Engineering Task Force"
-% docName		= "draft-bradley-dnssd-private-discovery-00"
+% docName		= "draft-bradley-dnssd-private-discovery-01"
 % ipr			= "trust200902"
-% date			= 2018-10-22T00:00:00Z
+% date			= 2019-04-20T00:00:00Z
 % [[author]]
 % initials		= "B."
 % surname		= "Bradley"
@@ -41,25 +41,25 @@ This document does not specify how keys are provisioned. Provisioning keys is co
 
 The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL NOT**",
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
-document are to be interpreted as described in RFC 2119 [@!RFC2119].
+document are to be interpreted as described in [@!RFC2119].
 
 "Friend"
 : A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
 
 "Probe"
-: A probe is an unsolicited multicast message sent to find friends on the network.
+: Unsolicited multicast message sent to find friends on the network.
 
 "Announcement"
-: An announcement is an unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
+: Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
 
 "Response"
-: A response is a solicited unicast message sent in response to a probe or announcement.
+: Solicited unicast message sent in response to a probe or announcement.
 
 "Query"
-: A query is an unsolicited unicast message sent to get specific info from a peer.
+: Unsolicited unicast message sent to get specific info from a peer.
 
 "Answer"
-: An answer is solicited unicast message sent in response to a query to provide info or indicate the lack of info.
+: Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
 
 "Multicast"
 : This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
@@ -117,23 +117,23 @@ When a peer receives an announcement, it verifies TS1. If TS1 is outside the tim
 
 ## Query {#query}
 
-A query is sent via unicast to request specific info from a friend. The raw DNS query records are generated the same way as a non-private Bonjour query (e.g. PTR, SRV, TXT, etc.). Once this data is generated (MSG1), it's encrypted with the symmetric session key (SSK1 for the original prober or SSK2 for the original responder) for the target friend previously generated via the probe/response exchange. This encrypted field is EMSG1. The nonce for EMSG1 is 1 larger than the last nonce used with this symmetric key and is not included in the query. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The query is sent via unicast to the friend.
+A query is sent via unicast to request specific info from a friend. The query data (MSG1) is encrypted with the symmetric session key (SSK1 for the original prober or SSK2 for the original responder) for the target friend previously generated via the probe/response exchange. This encrypted field is EMSG1. The nonce for EMSG1 is 1 larger than the last nonce used with this symmetric key and is not included in the query. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The query is sent via unicast to the friend.
 
 When the friend receives a query, it symmetrically verifies EMSG1 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the query is ignored, If verification succeeds, the query is processed.
 
 Query Fields:
 
-* EMSG1 (Encrypted DNS query(s)).
+* EMSG1 (Encrypted query data).
 
 ## Answer {#answer}
 
-An answer is sent via unicast in response to a query from a friend. The raw DNS answer records are generated the same way as a non-private Bonjour answer (e.g. PTR, SRV, TXT, etc.). Once this data is generated (MSG2), it's encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce for EMSG2 is 1 larger than the last nonce used with this symmetric key and is not included in the answer. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The answer is sent via unicast to the friend.
+An answer is sent via unicast in response to a query from a friend. The answer data (MSG2) is encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce for EMSG2 is 1 larger than the last nonce used with this symmetric key and is not included in the answer. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The answer is sent via unicast to the friend.
 
 When the friend receives an answer, it symmetrically verifies EMSG2 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the answer is ignored, If verification succeeds, the answer is processed.
 
 Answer Fields:
 
-* EMSG2 (Encrypted DNS answer(s)).
+* EMSG2 (Encrypted answer data).
 
 # Timestamps {#timestamps}
 
@@ -157,22 +157,14 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 
 # Message Formats
 
-The data defined by this document are contained within DNS records as specified in RFC 6195 [@!RFC6195].. The following DNS Resource Record (RR) types are specified. Note that these are from the "Private Use" range for now, but will presumably move to the normal range after IETF review:
+Messages defined by this document are use Type-Length-Value (TLV) payloads with an 8-bit type and a 16-bit length (TLV8x16). It has the following format.
 
-|Name			|RR Type		|Description
-|:--------------|:--------------|:----------
-|Probe			|0xFF00			|See (#probe).
-|Response		|0xFF01			|See (#response).
-|Announcement	|0xFF02			|See (#announcement).
-|Query			|0xFF03			|See (#query).
-|Answer			|0xFF04			|See (#answer).
-
-The RData within each DNS record is a Type-Length-Value with an 8-bit type and a 16-bit length (TLV8x16). It has the following format.
+## TLV Structure {#tlv-structure}
 
 |Field			|Size (bytes)	|Description
 |:--------------|:--------------|:----------
 |Type			|1				|Identifies a value type as defined in (#tlv-items).
-|Length			|2				|Length of the value field in bytes.
+|Length			|1 or 2			|Length of the value field in bytes.
 |Value			|Variable		|Value formatted based on the type field.
 
 ## TLV Items {#tlv-items}
@@ -182,20 +174,32 @@ The following lists the TLV items defined by this document.
 |Type		|Name		|Description
 |:----------|:----------|:----------
 |0x00		|Reserved	|Reserved to protect against accidental zeroing.
-|0x01		|EPK		|Ephemeral Public Key. 32-byte Curve25519 public key.
-|0x02		|TS			|Timestamp. 4-byte timestamp. See Timestamps (#timestamps).
-|0x03		|SIG		|Signature. 64-byte Ed25519 signature.
-|0x04		|ESIG		|Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).
-|0x05		|EMSG		|Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).
-|0x06-0xFF	|			|Reserved for future use. Types in this range MUST not be sent. If they are received, they MUST be ignored. This is to allow future versions of document or other documents to define new types without breaking parsers.
+|0x01		|Type		|Type of message. See (#message-types).
+|0x02		|EPK		|Ephemeral Public Key. 32-byte Curve25519 public key.
+|0x03		|TS			|Timestamp. 4-byte timestamp. See Timestamps (#timestamps).
+|0x04		|SIG		|Signature. 64-byte Ed25519 signature.
+|0x05		|ESIG		|Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).
+|0x06		|EMSG		|Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).
+|0x07-0xFF	|			|Reserved for future use. Types in this range MUST NOT be sent. If they are received, they MUST be ignored. This is to allow future versions of document or other documents to define new types without breaking parsers.
+
+## Message Types {#message-types}
+
+|Name			|Type	|Description
+|:--------------|:------|:----------
+|Invalid		|0		|Invalid message type. Avoid misinterpreting zeroed memory.
+|Probe			|1		|See (#probe).
+|Response		|2		|See (#response).
+|Announcement	|3		|See (#announcement).
+|Query			|4		|See (#query).
+|Answer			|5		|See (#answer).
 
 # Security Considerations
 
 * Privacy considerations are specified in draft-cheshire-dnssd-privacy-considerations.
-* Ephemeral key exchange uses elliptic curve Diffie-Hellman (ECDH) with Curve25519 as specified in RFC 7748 [@!RFC7748].
-* Signing and verification uses Ed25519 as specified in RFC 8032 [@!RFC8032].
-* Symmetric encryption uses ChaCha20-Poly1305 as specified in RFC 7539 [@!RFC7539].
-* Key derivation uses HKDF as specified in RFC 5869 [@!RFC5869] with SHA-512 as the hash function.
+* Ephemeral key exchange uses elliptic curve Diffie-Hellman (ECDH) with Curve25519 as specified in [@!RFC7748].
+* Signing and verification uses Ed25519 as specified in [@!RFC8032].
+* Symmetric encryption uses ChaCha20-Poly1305 as specified in [@!RFC7539].
+* Key derivation uses HKDF as specified in [@!RFC5869] with SHA-512 as the hash function.
 * Randoms and randomization MUST use cryptographic random numbers.
 
 Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if a friend of that friend is present on that network.
@@ -204,7 +208,7 @@ The network infrastructure may leak identifiers in the form of persistent IP add
 
 # IANA Considerations
 
-The DNS record and TLV types defined by this document are intended to be managed by IANA.
+The TLV and message types defined by this document are intended to be managed by IANA.
 
 # To Do
 

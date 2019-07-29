@@ -31,9 +31,9 @@ This document specifies a mechanism for advertising and discovering in a private
 
 # Introduction
 
-Advertising and discovering with Bonjour can leak a lot of information about a device or person, such as their name, the types of services they provide or use, and persistent identifiers. This information can be used to identify and track a person's location and daily routine (e.g. buys coffee every morning at 8 AM at Starbucks on Main Street). It can also reveal intimate details about a person's behavior and medical conditions, such as discovery requests for a glucose monitor, possibly indicating diabetes.
+Advertising and discovering devices and services on the network can leak a lot of information about a device or person, such as their name, the types of services they provide or use, and persistent identifiers. This information can be used to identify and track a person's location and daily routine (e.g. buys coffee every morning at 8 AM at Starbucks on Main Street). It can also reveal intimate details about a person's behavior and medical conditions, such as discovery requests for a glucose monitor, possibly indicating diabetes.
 
-This document specifies additions to Bonjour to retain the same level of advertising and discovery functionality while preserving privacy and confidentiality.
+This document specifies a system for advertising and discovery of devices and services while preserving privacy and confidentiality.
 
 This document does not specify how keys are provisioned. Provisioning keys is complex enough to justify its own document(s). This document assumes each peer has a long-term asymmetric key pair (LTPK and LTSK) and communicating peers have each other's long-term asymmetric public key (LTPK).
 
@@ -75,6 +75,8 @@ When multiple items are concatenated together, the symbol "||" (without quotes) 
 
 There are two techniques used to preserve privacy and provide confidentiality in this document. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
 
+The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
+
 ## Probe {#probe}
 
 A probe is sent via multicast to discover friends on the network. A probe contains a fresh, ephemeral public key (EPK1), a timestamp (TS1), and a signature (SIG1). This provides enough for a friend to identify the source, but doesn't allow non-friends to identify it.
@@ -105,7 +107,7 @@ Key Derivation values:
 
 ## Announcement {#announcement}
 
-An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its private Bonjour records (but not for public Bonjour records since those are handled using non-private Bonjour methods). Announcements are sent via multicast.
+An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announcements are sent via multicast.
 
 Announcement Fields:
 
@@ -204,7 +206,7 @@ The following lists the TLV items defined by this document.
 
 Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if a friend of that friend is present on that network.
 
-The network infrastructure may leak identifiers in the form of persistent IP addresses and MAC addresses. Mitigating this requires changes outside of Bonjour, such as periodically changing IP addresses and MAC addresses.
+The network infrastructure may leak identifiers in the form of persistent IP addresses and MAC addresses. Mitigating this requires changes at lower levels of the network stack, such as periodically changing IP addresses and MAC addresses.
 
 # IANA Considerations
 
@@ -218,5 +220,6 @@ The following are some of the things that still need to be specified and decided
 * Define probe and announcement random delays to reduce collisions.
 * Describe when to use the same EPK2 in a response to reduce churn on probe/response collisions.
 * Consider randomly answering probes for non-friends to mask real friends.
+* Design public service protocol to allow pairing.
 
 {backmatter}

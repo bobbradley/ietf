@@ -37,9 +37,9 @@ This document specifies a mechanism for advertising and discovering in a private
 
 # Introduction
 
-Advertising and discovering with Bonjour can leak a lot of information about a device or person, such as their name, the types of services they provide or use, and persistent identifiers. This information can be used to identify and track a person's location and daily routine (e.g. buys coffee every morning at 8 AM at Starbucks on Main Street). It can also reveal intimate details about a person's behavior and medical conditions, such as discovery requests for a glucose monitor, possibly indicating diabetes.
+Advertising and discovering devices and services on the network can leak a lot of information about a device or person, such as their name, the types of services they provide or use, and persistent identifiers. This information can be used to identify and track a person's location and daily routine (e.g. buys coffee every morning at 8 AM at Starbucks on Main Street). It can also reveal intimate details about a person's behavior and medical conditions, such as discovery requests for a glucose monitor, possibly indicating diabetes.
 
-This document specifies additions to Bonjour to retain the same level of advertising and discovery functionality while preserving privacy and confidentiality.
+This document specifies a system for advertising and discovery of devices and services while preserving privacy and confidentiality.
 
 This document does not specify how keys are provisioned. Provisioning keys is complex enough to justify its own document(s). This document assumes each peer has a long-term asymmetric key pair (LTPK and LTSK) and communicating peers have each other's long-term asymmetric public key (LTPK).
 
@@ -53,19 +53,19 @@ document are to be interpreted as described in RFC 2119 {{!RFC2119}}.
 : A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
 
 "Probe"
-: A probe is an unsolicited multicast message sent to find friends on the network.
+: Unsolicited multicast message sent to find friends on the network.
 
 "Announcement"
-: An announcement is an unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
+: Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
 
 "Response"
-: A response is a solicited unicast message sent in response to a probe or announcement.
+: Solicited unicast message sent in response to a probe or announcement.
 
 "Query"
-: A query is an unsolicited unicast message sent to get specific info from a peer.
+: Unsolicited unicast message sent to get specific info from a peer.
 
 "Answer"
-: An answer is solicited unicast message sent in response to a query to provide info or indicate the lack of info.
+: Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
 
 "Multicast"
 : This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
@@ -80,6 +80,8 @@ When multiple items are concatenated together, the symbol "\|\|" (without quotes
 # Protocol
 
 There are two techniques used to preserve privacy and provide confidentiality in this document. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
+
+The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
 
 ## Probe {#probe}
 
@@ -127,7 +129,7 @@ Key Derivation values:
 
 ## Announcement {#announcement}
 
-An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its private Bonjour records (but not for public Bonjour records since those are handled using non-private Bonjour methods). Announcements are sent via multicast.
+An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announcements are sent via multicast.
 
 Announcement Fields:
 
@@ -140,27 +142,23 @@ When a peer receives an announcement, it verifies TS1. If TS1 is outside the tim
 
 ## Query {#query}
 
-A query is sent via unicast to request specific info from a friend. The raw DNS query records are generated the same way as a non-private Bonjour query (e.g. PTR, SRV, TXT, etc.). Once this data is generated (MSG1), it's encrypted with the symmetric session key (SSK1 for the original prober or SSK2 for the original responder) for the target friend previously generated via the probe/response exchange. This encrypted field is EMSG1.
+A query is sent via unicast to request specific info from a friend. The query data (MSG1) is encrypted with the symmetric session key (SSK1 for the original prober or SSK2 for the original responder) for the target friend previously generated via the probe/response exchange. This encrypted field is EMSG1. The nonce for EMSG1 is 1 larger than the last nonce used with this symmetric key and is not included in the query. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The query is sent via unicast to the friend.
 
-The nonce for encryption is constructing by XORing SSIV1 (or SSIV2) with a 96-bit counter value starting at 2. The resulting nonce itself is then encrypted, yielding EN1, by first encrypting the first 12 octets of EMSG1 with SSKPNE1 (or SSKPNE2) to yield a mask, and then XORing the nonce with this mask. The final query message is then EN1 \|\| EMSG1. The query is sent via unicast to the friend.
-
-When the friend receives a query EN1 \|\| EMSG1, it derives the nonce encryption mask by encrypting the first 12 octets of EMSG1 to derive the mask, XORing this mask with EN to recover the explicit nonce, and then using this nonce to decrypt EMSG1. If one is successful (which also identifies the friend), it decrypts the field. If any part of decryption or verification fails, the query is ignored, If verification succeeds, the query is processed.
+When the friend receives a query, it symmetrically verifies EMSG1 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the query is ignored, If verification succeeds, the query is processed.
 
 Query Fields:
 
-* EN1 (Encrypted nonce).
-* EMSG1 (Encrypted DNS query(s)).
+* EMSG1 (Encrypted query data).
 
 ## Answer {#answer}
 
-An answer is sent via unicast in response to a query from a friend. The raw DNS answer records are generated the same way as a non-private Bonjour answer (e.g. PTR, SRV, TXT, etc.). Once this data is generated (MSG2), it's encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce EN2 is built from the counter value associated with the encryption key, and subsequently encrypted as described in {{query}}. For example, if this is the first message sent to this friend after the probe/response then the nonce would be (2 XOR SSIV2). The answer EN2 \|\| EMSG2 is sent via unicast to the friend.
+An answer is sent via unicast in response to a query from a friend. The answer data (MSG2) is encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce for EMSG2 is 1 larger than the last nonce used with this symmetric key and is not included in the answer. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The answer is sent via unicast to the friend.
 
-When the friend receives an answer, it recovers the nonce, symmetrically verifies EMSG2 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If decryption or verification fails, the answer is ignored, If verification succeeds, the answer is processed.
+When the friend receives an answer, it symmetrically verifies EMSG2 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the answer is ignored, If verification succeeds, the answer is processed.
 
 Answer Fields:
 
-* EN2 (Encrypted nonce).
-* EMSG2 (Encrypted DNS answer(s)).
+* EMSG2 (Encrypted answer data).
 
 # Timestamps {#timestamps}
 
@@ -184,37 +182,41 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 
 # Message Formats
 
-The data defined by this document are contained within DNS records as specified in RFC 6195 {{!RFC6195}}. The following DNS Resource Record (RR) types are specified. Note that these are from the "Private Use" range for now, but will presumably move to the normal range after IETF review:
+Messages defined by this document are use Type-Length-Value (TLV) payloads with an 8-bit type and a 16-bit length (TLV8x16). It has the following format.
 
-|Name			|RR Type		|Description|
+## TLV Structure {#tlv-structure}
+
+|Field          |Size (bytes)   |Description|
 |:--------------|:--------------|:----------|
-|Probe			|0xFF00			|See {#probe}.|
-|Response		|0xFF01			|See {#response}.|
-|Announcement	|0xFF02			|See {#announcement}.|
-|Query			|0xFF03			|See {#query}.|
-|Answer			|0xFF04			|See {#answer}.|
-
-The RData within each DNS record is a Type-Length-Value with an 8-bit type and a 16-bit length (TLV8x16). It has the following format.
-
-|Field			|Size (bytes)	|Description|
-|:--------------|:--------------|:----------|
-|Type			|1				|Identifies a value type as defined in {#tlv-items}.|
-|Length			|2				|Length of the value field in bytes.|
-|Value			|Variable		|Value formatted based on the type field.|
+|Type           |1              |Identifies a value type as defined in {#tlv-items}.|
+|Length         |1 or 2             |Length of the value field in bytes.|
+|Value          |Variable       |Value formatted based on the type field.|
 
 ## TLV Items {#tlv-items}
 
 The following lists the TLV items defined by this document.
 
-|Type		|Name		|Description|
+|Type       |Name       |Description|
 |:----------|:----------|:----------|
-|0x00		|Reserved	|Reserved to protect against accidental zeroing.|
-|0x01		|EPK		|Ephemeral Public Key. 32-byte Curve25519 public key.|
-|0x02		|TS			|Timestamp. 4-byte timestamp. See Timestamps {#timestamps}.|
-|0x03		|SIG		|Signature. 64-byte Ed25519 signature.|
-|0x04		|ESIG		|Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).|
-|0x05		|EMSG		|Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).|
-|0x06-0xFF	|			|Reserved for future use. Types in this range MUST not be sent. If they are received, they MUST be ignored. This is to allow future versions of document or other documents to define new types without breaking parsers.|
+|0x00       |Reserved   |Reserved to protect against accidental zeroing.|
+|0x01       |Type       |Type of message. See (#message-types).
+|0x02       |EPK        |Ephemeral Public Key. 32-byte Curve25519 public key.|
+|0x03       |TS         |Timestamp. 4-byte timestamp. See Timestamps {#timestamps}.|
+|0x04       |SIG        |Signature. 64-byte Ed25519 signature.|
+|0x05       |ESIG       |Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).|
+|0x06       |EMSG       |Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).|
+|0x07-0xFF  |           |Reserved for future use. Types in this range MUST not be sent. If they are received, they MUST be ignored. This is to allow future versions of document or other documents to define new types without breaking parsers.|
+
+## Message Types {#message-types}
+
+|Name			|Type		|Description|
+|:--------------|:--------------|:----------|
+|Invalid        |0      |Invalid message type. Avoid misinterpreting zeroed memory.
+|Probe          |1      |See (#probe).
+|Response       |2      |See (#response).
+|Announcement   |3      |See (#announcement).
+|Query          |4      |See (#query).
+|Answer         |5      |See (#answer).
 
 # Security Considerations
 
@@ -227,13 +229,11 @@ The following lists the TLV items defined by this document.
 
 Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if a friend of that friend is present on that network.
 
-The network infrastructure may leak identifiers in the form of persistent IP addresses and MAC addresses. Mitigating this requires changes outside of Bonjour, such as periodically changing IP addresses and MAC addresses.
+The network infrastructure may leak identifiers in the form of persistent IP addresses and MAC addresses. Mitigating this requires changes at lower levels of the network stack, such as periodically changing IP addresses and MAC addresses.
 
 # IANA Considerations
 
-The DNS record and TLV types defined by this document are intended to be managed by IANA.
-
-This document intends to register the version codepoint TBD.
+The TLV and message types defined by this document are intended to be managed by IANA.
 
 # To Do
 
@@ -243,5 +243,6 @@ The following are some of the things that still need to be specified and decided
 * Define probe and announcement random delays to reduce collisions.
 * Describe when to use the same EPK2 in a response to reduce churn on probe/response collisions.
 * Consider randomly answering probes for non-friends to mask real friends.
+* Design public service protocol to allow pairing.
 
 {backmatter}

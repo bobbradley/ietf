@@ -106,7 +106,7 @@ Peers should keep a small cache of ephemeral public keys in order to detect mali
 
 A response contains a fresh, ephemeral public key (EPK2) and a symmetrically encrypted signature (ESIG2). The encryption key is derived by first generating a fresh ephemeral public key (EPK2) and its corresponding secret key (ESK2) and performing Diffie-Hellman (DH) using EPK1 and ESK2 to compute a shared secret. The shared secret is used to derive a symmetric session key (SSK2). A signature of the payload is generated (SIG2) using the responder's long-term secret key (LTSK2). The signature is encrypted with SSK2 (ESIG2). The nonce for ESIG2 is 1 and is not included in the response. The response is sent via unicast to the sender of the probe.
 
-When the friend that sent the probe receives the response, it performs DH, symmetrically verifies ESIG2 and, if successful, decrypts it to reveal SIG2. It then tries to verify SIG2 with the public keys of all of its friends. If a verification succeeds for a public key then it knows which friend sent the response. If any steps fail, the response is ignored. If all steps succeed, it derives keying material as described in {{key-derivation}} used for subsequent communication with the friend.
+When the friend that sent the probe receives the response, it performs DH, symmetrically verifies ESIG2 and, if successful, decrypts it to reveal SIG2. It then tries to verify SIG2 with the public keys of all of its friends. If a verification succeeds for a public key then it knows which friend sent the response. If any steps fail, the response is ignored. If all steps succeed, it derives a session key (SSK1). Both session keys (SSK1 and SSK2) are remembered for subsequent communication with the friend.
 
 Response Fields:
 
@@ -121,11 +121,7 @@ A fake response is comprised of a version field and random bytes of size compara
 Key Derivation values:
 
 - SSK1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-Key", Output size = 32 bytes.
-- SSIV1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-IV", Output size = 12 bytes.
-- SSKPNE1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-PNE", Output size = 32 bytes.
 - SSK2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-Key", Output size = 32 bytes.
-- SSIV2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-IV", Output size = 12 bytes.
-- SSKPNE2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-PNE", Output size = 32 bytes.
 
 ## Announcement {#announcement}
 

@@ -47,7 +47,7 @@ This document does not specify how keys are provisioned. Provisioning keys is co
 
 The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL NOT**",
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
-document are to be interpreted as described in RFC 2119 {{!RFC2119}}.
+document are to be interpreted as described in {{!RFC2119}}.
 
 "Friend"
 : A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
@@ -83,24 +83,54 @@ There are two techniques used to preserve privacy and provide confidentiality in
 
 The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
 
+Messages use a common header with a flags/type field. This indicates the format of the data after the header. Any data beyond the type-specific message body must be ignored. Future versions of this document may define additional data and this must not cause older message parsers to break. Updated formats that break compatibility with older parsers must use a new message type. (That is, there is no explicit version field in the wire image.)
+
+Message format:
+
+~~~~
+ 0 1 2 3 4 5 6 7 8 bits
++-----+---------+~~~~~~~~~~~~~~~
+|Flags|  Type   | Type-specific
++-----+---------+~~~~~~~~~~~~~~~
+~~~~
+* Flags: Flags for future use. Set to 0 when sending. Ignore when receiving.
+* Type:  Message type. See {#message-types}.
+
 ## Probe {#probe}
 
-A probe is sent via multicast to discover friends on the network. A probe contains a 2-octet version (V) as well as a fresh, ephemeral public key (EPK1), timestamp (TS1), and a signature (SIG1). This provides enough for a friend to identify the source, but doesn't allow non-friends to identify it.
+A probe is sent via multicast to discover friends on the network. A probe contains a fresh, ephemeral public key (EPK1), a timestamp (TS1), and a signature (SIG1). This provides enough for a friend to identify the source, but doesn't allow non-friends to identify it.
 
 Probe Fields:
 
-- V (Version).
-- EPK1 (Ephemeral Public Key 1).
-- TS1 (Timestamp 1). See Timestamps {#timestamps}.
-- SIG1 (Signature of "Probe" \|\| V \|\| EPK1 \|\| TS1 \|\| "End").
+* EPK1 (Ephemeral Public Key 1).
+* TS1 (Timestamp 1). See Timestamps {{timestamps}}.
+* SIG1 (Signature of "Probe" \|\| EPK1 \|\| TS1 \|\| "End").
 
-When a peer receives a probe, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. The order in which friend keys are used should be randomized so as to hide the contents of one's friend list.
+When a peer receives a probe, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the probe. It SHOULD send a response to the friend.
 
-If verification fails for all public keys it MAY send a fake response (see {{response}}) so as to hide information about the friend list. Always sending fake responses allows an adversary to learn the size of one's friend list. Never sending fake responses allows an eavesdropper to learn whether two peers are friends.
+If verification fails for all public keys it MAY send a fake response (see {{response}}) so as to hide information about the friend list. Always sending fake responses allows an adversary to learn the size of one's friend list. Never sending fake responses allows an eavesdropper to learn whether two peers are friends. 
 
 If a verification succeeds for a public key then it knows which friend sent the probe. It SHOULD send a response to the friend, and this response SHOULD be sent after some delay proportional to the size of the friend list. (This is done so as to not leak information about the friend list.)
 
-Peers should keep a small cache of ephemeral public keys in order to detect malicious probe replays.
+Probes SHOULD NOT be sent at regular intervals. Doing so may allow passive observes to track devices based on the observed probed cadence.
+
+Message format:
+
+~~~~
++0   +-----+---------+
+     |0|0|0| Type=1  | 1 byte
++1   +-----+---------+---------------+
+     | EPK1 (Ephemeral Public Key 1) | 32 bytes 
+     |                               |
++33  +-------------------------------+
+     | TS1 (Timestamp 1)             | 4 bytes
++37  +-------------------------------+
+     | SIG1 (Signature 1)            | 64 bytes
+     |                               |
+     |                               |
+     +-------------------------------+
++101 Total bytes
+~~~~
 
 ## Response {#response}
 
@@ -108,33 +138,63 @@ A response contains a fresh, ephemeral public key (EPK2) and a symmetrically enc
 
 When the friend that sent the probe receives the response, it performs DH, symmetrically verifies ESIG2 and, if successful, decrypts it to reveal SIG2. It then tries to verify SIG2 with the public keys of all of its friends. If a verification succeeds for a public key then it knows which friend sent the response. If any steps fail, the response is ignored. If all steps succeed, it derives a session key (SSK1). Both session keys (SSK1 and SSK2) are remembered for subsequent communication with the friend.
 
-Response Fields:
-
-- V (Version).
-- EPK2 (Ephemeral Public Key 2).
-- ESIG2 (Encrypted Signature of "Response" \|\| V \|\| EPK2 \|\| EPK1 \|\| TS1 \|\| "End").
-
 A fake response is comprised of a version field and random bytes of size comparable to a real response.
 
-### Key Derivation {#key-derivation}
+Response Fields:
+
+* EPK2 (Ephemeral Public Key 2).
+* ESIG2 (Encrypted Signature of "Response" \|\| EPK2 \|\| EPK1 \|\| TS1 \|\| "End").
 
 Key Derivation values:
 
-- SSK1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-Key", Output size = 32 bytes.
-- SSK2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-Key", Output size = 32 bytes.
+* SSK1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-Info", Output size = 32 bytes.
+* SSK2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-Info", Output size = 32 bytes.
+
+Message format:
+
+~~~~
++0   +-----+---------+
+     |0|0|0| Type=2  | 1 byte
++1   +-----+---------+---------------+
+     | EPK2 (Ephemeral Public Key 2) | 32 bytes 
+     |                               |
++33  +-------------------------------+
+     | ESIG2 (Encrypted Signature 2) | 96 bytes
+     |                               |
+     |                               |
+     +-------------------------------+
++129 Total bytes
+~~~~
 
 ## Announcement {#announcement}
 
-An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announcements are sent via multicast.
+An announcement indicates availability to friends on the network or if it has update(s). It is sent some time after a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announcements are sent via multicast. The amount of time between an announcement-triggering event and the subsequent announcement SHOULD NOT be deterministic, as this may leak information about the preceding event, such as IP address rotation.
 
 Announcement Fields:
 
-- V (Version).
-- EPK1 (Ephemeral Public Key 1).
-- TS1 (Timestamp 1). See Timestamps {#timestamps}.
-- SIG1 (Signature of "Announcement" \|\| V \|\| EPK1 \|\| TS1 \|\| "End").
+* EPK1 (Ephemeral Public Key 1).
+* TS1 (Timestamp 1). See Timestamps {{timestamps}}.
+* SIG1 (Signature of "Announcement" \|\| EPK1 \|\| TS1 \|\| "End").
 
 When a peer receives an announcement, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the announcement.
+
+Message format:
+
+~~~~
++0   +-----+---------+
+     |0|0|0| Type=3  | 1 byte
++1   +-----+---------+---------------+
+     | EPK1 (Ephemeral Public Key 1) | 32 bytes 
+     |                               |
++33  +-------------------------------+
+     | TS1 (Timestamp 1)             | 4 bytes
++37  +-------------------------------+
+     | SIG1 (Signature 1)            | 64 bytes
+     |                               |
+     |                               |
+     +-------------------------------+
++101 Total bytes
+~~~~
 
 ## Query {#query}
 
@@ -146,6 +206,18 @@ Query Fields:
 
 * EMSG1 (Encrypted query data).
 
+Message format:
+
+~~~~
++0  +-----+---------+
+    |0|0|0| Type=4  | 1 byte
++1  +-----+---------+--------------+
+    | EMSG1 (Encrypted query data) | n + 16 bytes 
+    |                              |
+    +------------------------------+
++17 + n Total bytes
+~~~~
+
 ## Answer {#answer}
 
 An answer is sent via unicast in response to a query from a friend. The answer data (MSG2) is encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce for EMSG2 is 1 larger than the last nonce used with this symmetric key and is not included in the answer. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The answer is sent via unicast to the friend.
@@ -156,6 +228,18 @@ Answer Fields:
 
 * EMSG2 (Encrypted answer data).
 
+Message format:
+
+~~~~
++0  +-----+---------+
+    |0|0|0| Type=5  | 1 byte
++1  +-----+---------+--------------+
+    | EMSG2 (Encrypted query data) | n + 16 bytes 
+    |                              |
+    +------------------------------+
++17 + n Total bytes
+~~~~
+
 # Timestamps {#timestamps}
 
 A timestamp in this document is the number of seconds since 2001-01-01 00:00:00 UTC. Timestamps sent in messages SHOULD be randomized by +/- 30 seconds to reduce the fingerprinting ability of observers. A timestamp of 0 means the sender doesn't know the current time (e.g. lacks a battery-backed RTC and access to an NTP server). Receivers MAY use a timestamp of 0 to decide whether to enforce time window restrictions. This can allow discovery in situations where one or more devices don't know the current time (e.g. location without Internet access).
@@ -164,7 +248,7 @@ A timestamp is considered valid if it's within N seconds of the current time of 
 
 # Implicit Nonces
 
-The nonces in this document are integers that increment by 1 for each encryption. Nonces are never included in any message. Including nonces in messages would enable transactions to be easily tracked by following nonce 1, 2, 3, etc. This may seem futile if other layers of the system also leak trackable identifiers, such as IP addresses, but those problems can be solved by other documents. Random nonces could avoid tracking, but make replay protection difficult by requiring the receiver to remember previously received messages to detect a replay.
+The nonces in this document are integers that increment by 1 for each encryption. Nonces are never included in any message. Including nonces in messages would enable transactions to be easily tracked by following nonce 1, 2, 3, etc. This may seem futile if other layers of the system also leak trackable identifiers, such as IP addresses, but those problems are out of scope. Random nonces could avoid tracking, but make replay protection difficult by requiring the receiver to remember previously received messages to detect a replay.
 
 One issue with implicit nonces and replay protection in general is handling lost messages. Message loss and reordering is expected and shouldn't cause complete failure. Accepting nonces within N of the expected nonce enables recovery from some loss and reordering. When a message is received, the expected nonce is checked first and then nonce + 1, nonce - 1, up to nonce +/- N. The RECOMMENDED value of N is 8 as a balance between privacy, robustness, and performance.
 
@@ -176,51 +260,35 @@ Probes are periodically re-sent with a new ephemeral public key in case the prev
 
 Session keys are periodically re-key'd in case a symmetric key was compromised. The RECOMMENDED maximum session key lifetime is 20 hours or 1000 messages, whichever comes first. This uses the same close-to-a-day reasoning as probes, but adds a maximum number of messages to reduce the potential for exposure when many messages are being exchanged. Responses SHOULD be throttled if it appears that a peer is making an excessive number of requests since this may indicate the peer is probing for weaknesses (e.g. timing attacks, ChopChop-style attacks).
 
-# Message Formats
+# Message Types {#message-types}
 
-Messages defined by this document are use Type-Length-Value (TLV) payloads with an 8-bit type and a 16-bit length (TLV8x16). It has the following format.
+|Name			|Type	|Description
+|:--------------|:------|:----------
+|Invalid		|0		|Invalid message type. Avoids misinterpreting zeroed memory.
+|Probe			|1		|See {{probe}}.
+|Response		|2		|See {{response}}.
+|Announcement	|3		|See {{announcement}}.
+|Query			|4		|See {{query}}.
+|Answer			|5		|See {{answer}}.
+|Reserved		|6-255	|Reserved. Don't use when sending. Ignore if received.
 
-## TLV Structure {#tlv-structure}
+# Message Fields {#message-fields}
 
-|Field          |Size (bytes)   |Description|
-|:--------------|:--------------|:----------|
-|Type           |1              |Identifies a value type as defined in {#tlv-items}.|
-|Length         |1 or 2             |Length of the value field in bytes.|
-|Value          |Variable       |Value formatted based on the type field.|
-
-## TLV Items {#tlv-items}
-
-The following lists the TLV items defined by this document.
-
-|Type       |Name       |Description|
-|:----------|:----------|:----------|
-|0x00       |Reserved   |Reserved to protect against accidental zeroing.|
-|0x01       |Type       |Type of message. See (#message-types).
-|0x02       |EPK        |Ephemeral Public Key. 32-byte Curve25519 public key.|
-|0x03       |TS         |Timestamp. 4-byte timestamp. See Timestamps {#timestamps}.|
-|0x04       |SIG        |Signature. 64-byte Ed25519 signature.|
-|0x05       |ESIG       |Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).|
-|0x06       |EMSG       |Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).|
-|0x07-0xFF  |           |Reserved for future use. Types in this range MUST not be sent. If they are received, they MUST be ignored. This is to allow future versions of document or other documents to define new types without breaking parsers.|
-
-## Message Types {#message-types}
-
-|Name			|Type		|Description|
-|:--------------|:--------------|:----------|
-|Invalid        |0      |Invalid message type. Avoid misinterpreting zeroed memory.
-|Probe          |1      |See (#probe).
-|Response       |2      |See (#response).
-|Announcement   |3      |See (#announcement).
-|Query          |4      |See (#query).
-|Answer         |5      |See (#answer).
+|Name			|Description
+|:--------------|:----------
+|EPK1/EPK2		|Ephemeral Public Key. 32-byte Curve25519 public key.
+|TS1			|Timestamp. 4-byte timestamp. See Timestamps {{timestamps}}.
+|SIG1/SIG2		|Signature. 64-byte Ed25519 signature.
+|ESIG1/ESIG2	|Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).
+|EMSG1/EMSG2	|Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).
 
 # Security Considerations
 
 * Privacy considerations are specified in draft-cheshire-dnssd-privacy-considerations.
-* Ephemeral key exchange uses elliptic curve Diffie-Hellman (ECDH) with Curve25519 as specified in RFC 7748 {{!RFC7748}}.
-* Signing and verification uses Ed25519 as specified in RFC 8032 {{!RFC8032}}.
-* Symmetric encryption uses ChaCha20-Poly1305 as specified in RFC 7539 {{!RFC7539}}.
-* Key derivation uses HKDF as specified in RFC 5869 {{!RFC5869}} with SHA-512 as the hash function.
+* Ephemeral key exchange uses elliptic curve Diffie-Hellman (ECDH) with Curve25519 as specified in {{!RFC7748}}.
+* Signing and verification uses Ed25519 as specified in {{!RFC8032}}.
+* Symmetric encryption uses ChaCha20-Poly1305 as specified in {{!RFC7539}}.
+* Key derivation uses HKDF as specified in {{!RFC5869}} with SHA-512 as the hash function.
 * Randoms and randomization MUST use cryptographic random numbers.
 
 Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if a friend of that friend is present on that network.
@@ -229,16 +297,15 @@ The network infrastructure may leak identifiers in the form of persistent IP add
 
 # IANA Considerations
 
-The TLV and message types defined by this document are intended to be managed by IANA.
+* A multicast UDP port number would need to be allocated by IANA.
+* Message types defined by this document are intended to be managed by IANA.
 
 # To Do
 
 The following are some of the things that still need to be specified and decided:
 
 * Figure out how sleep proxies might work with this protocol.
-* Define probe and announcement random delays to reduce collisions.
 * Describe when to use the same EPK2 in a response to reduce churn on probe/response collisions.
-* Consider randomly answering probes for non-friends to mask real friends.
 * Design public service protocol to allow pairing.
 
 {backmatter}

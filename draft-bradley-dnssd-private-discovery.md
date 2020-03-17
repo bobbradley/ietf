@@ -43,28 +43,28 @@ The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL 
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
 document are to be interpreted as described in [@!RFC2119].
 
-"Friend"
+"**Friend**"
 : A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
 
-"Probe"
+"**Probe**"
 : Unsolicited multicast message sent to find friends on the network.
 
-"Announcement"
+"**Announcement**"
 : Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
 
-"Response"
+"**Response**"
 : Solicited unicast message sent in response to a probe or announcement.
 
-"Query"
+"**Query**"
 : Unsolicited unicast message sent to get specific info from a peer.
 
-"Answer"
+"**Answer**"
 : Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
 
-"Multicast"
+"**Multicast**"
 : This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
 
-"Unicast"
+"**Unicast**"
 : This term is used in the generic sense of sending a message that targets a single peer. It's not strictly required to be a UDP packet with a unicast destination address.
 
 Multi-byte values are encoded from the most significant byte to the least significant byte (big endian).
@@ -77,15 +77,17 @@ There are two techniques used to preserve privacy and provide confidentiality in
 
 The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
 
-Messages use a common header with a flags/type field. This indicates the format of the data after the header. Any data beyond the type-specific message body must be ignored. Future versions of this document may define additional data and this must not cause older message parsers to break. Updated formats that break compatibility with older parsers must use a new message type.
+Messages use a common header with a flags/type field. This indicates the format of the data after the header. Any data beyond the type-specific message body MUST be ignored. Future versions of this document may define additional data and this MUST NOT cause older message parsers to break. Updated formats that break compatibility with older parsers MUST use a new message type.
+
+This protocol avoids explicit version numbers. It's versioned using message types and flags. Flags are used for protocol extensions where a flag can indicate the presence of an optional field. A new message type is used when the old message type structure cannot reasonably be extended without breaking older parsers. For example, if the probe message in this document changed to use a different key type then older parsers would misinterpret the content of the message. A new type would be ignored by older compliant parsers.
 
 Message format:
 
 ~~~~
  0 1 2 3 4 5 6 7 8 bits
-+-----+---------+~~~~~~~~~~~~~~~
-|Flags|  Type   | Type-specific
-+-----+---------+~~~~~~~~~~~~~~~
++-----+---------+~~~~~~~~~~~~~~~~~~~~
+|Flags|  Type   | Type-specific data
++-----+---------+~~~~~~~~~~~~~~~~~~~~
 ~~~~
 * Flags: Flags for future use. Set to 0 when sending. Ignore when receiving.
 * Type:  Message type. See (#message-types).
@@ -105,6 +107,7 @@ When a peer receives a probe, it verifies TS1. If TS1 is outside the time window
 Message format:
 
 ~~~~
+      0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
      |Flags| Type=1  | 1 byte
 +1   +-----+---------+---------------+
@@ -139,6 +142,7 @@ Key Derivation values:
 Message format:
 
 ~~~~
+      0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
      |Flags| Type=2  | 1 byte
 +1   +-----+---------+---------------+
@@ -167,6 +171,7 @@ When a peer receives an announcement, it verifies TS1. If TS1 is outside the tim
 Message format:
 
 ~~~~
+      0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
      |Flags| Type=3  | 1 byte
 +1   +-----+---------+---------------+
@@ -195,6 +200,7 @@ Query Fields:
 Message format:
 
 ~~~~
+     0 1 2 3 4 5 6 7 8 bits
 +0  +-----+---------+
     |Flags| Type=4  | 1 byte
 +1  +-----+---------+--------------+
@@ -217,6 +223,7 @@ Answer Fields:
 Message format:
 
 ~~~~
+     0 1 2 3 4 5 6 7 8 bits
 +0  +-----+---------+
     |Flags| Type=5  | 1 byte
 +1  +-----+---------+--------------+

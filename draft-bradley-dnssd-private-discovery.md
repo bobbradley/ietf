@@ -1,15 +1,15 @@
 % # To convert this file to text and HTML:
-% # mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-03.xml
-% # xml2rfc --text draft-bradley-dnssd-private-discovery-03.xml -o draft-bradley-dnssd-private-discovery-03.txt
-% # xml2rfc --html draft-bradley-dnssd-private-discovery-03.xml -o draft-bradley-dnssd-private-discovery-03.html
+% # mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-04.xml
+% # xml2rfc --text draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.txt
+% # xml2rfc --html draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.html
 % # 
 % Title			= "Private Discovery"
 % category		= "std"
 % are			= "Internet"
 % workgroup		= "Internet Engineering Task Force"
-% docName		= "draft-bradley-dnssd-private-discovery-03"
+% docName		= "draft-bradley-dnssd-private-discovery-04"
 % ipr			= "trust200902"
-% date			= 2020-02-11T00:00:00Z
+% date			= 2020-08-02T00:00:00Z
 % [[author]]
 % initials		= "B."
 % surname		= "Bradley"

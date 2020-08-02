@@ -79,10 +79,9 @@ The general flow of the protocol is a device sends multicast probes to discover 
 
 Messages use a common header with a flags/type field. This indicates the format of the data after the header. Any data beyond the type-specific message body MUST be ignored. Future versions of this document may define additional data and this MUST NOT cause older message parsers to break. Updated formats that break compatibility with older parsers MUST use a new message type.
 
-This protocol avoids explicit version numbers. It's versioned using message types and flags. Flags are used for protocol extensions where a flag can indicate the presence of an optional field. A new message type is used when the old message type structure cannot reasonably be extended without breaking older parsers. For example, if the probe message in this document changed to use a different key type then older parsers would misinterpret the content of the message. A new type would be ignored by older compliant parsers.
+This protocol avoids explicit version numbers. It's versioned using message types and flags. Flags are used for protocol extensions where a flag can indicate the presence of an optional field. A new message type is used when the old message type structure cannot reasonably be extended without breaking older parsers. For example, if the probe message in this document changed to use a different key type then older parsers would misinterpret the content of the message. A new type would be ignored by older, compliant parsers.
 
 Message format:
-
 ~~~~
  0 1 2 3 4 5 6 7 8 bits
 +-----+---------+~~~~~~~~~~~~~~~~~~~~
@@ -105,11 +104,10 @@ Probe Fields:
 When a peer receives a probe, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the probe. It SHOULD send a response to the friend.
 
 Message format:
-
 ~~~~
       0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
-     |Flags| Type=1  | 1 byte
+     |Flg=0| Type=1  | 1 byte
 +1   +-----+---------+---------------+
      | EPK1 (Ephemeral Public Key 1) | 32 bytes 
      |                               |
@@ -140,11 +138,10 @@ Key Derivation values:
 * SSK2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-Info", Output size = 32 bytes.
 
 Message format:
-
 ~~~~
       0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
-     |Flags| Type=2  | 1 byte
+     |Flg=0| Type=2  | 1 byte
 +1   +-----+---------+---------------+
      | EPK2 (Ephemeral Public Key 2) | 32 bytes 
      |                               |
@@ -169,11 +166,10 @@ Announcement Fields:
 When a peer receives an announcement, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the announcement.
 
 Message format:
-
 ~~~~
       0 1 2 3 4 5 6 7 8 bits
 +0   +-----+---------+
-     |Flags| Type=3  | 1 byte
+     |Flg=0| Type=3  | 1 byte
 +1   +-----+---------+---------------+
      | EPK1 (Ephemeral Public Key 1) | 32 bytes 
      |                               |
@@ -198,11 +194,10 @@ Query Fields:
 * EMSG1 (Encrypted query data).
 
 Message format:
-
 ~~~~
      0 1 2 3 4 5 6 7 8 bits
 +0  +-----+---------+
-    |Flags| Type=4  | 1 byte
+    |Flg=0| Type=4  | 1 byte
 +1  +-----+---------+--------------+
     | EMSG1 (Encrypted query data) | n + 16 bytes 
     |                              |
@@ -221,11 +216,10 @@ Answer Fields:
 * EMSG2 (Encrypted answer data).
 
 Message format:
-
 ~~~~
      0 1 2 3 4 5 6 7 8 bits
 +0  +-----+---------+
-    |Flags| Type=5  | 1 byte
+    |Flg=0| Type=5  | 1 byte
 +1  +-----+---------+--------------+
     | EMSG2 (Encrypted query data) | n + 16 bytes 
     |                              |
@@ -235,13 +229,13 @@ Message format:
 
 # Timestamps {#timestamps}
 
-A timestamp in this document is the number of seconds since 2001-01-01 00:00:00 UTC. Timestamps sent in messages SHOULD be randomized by +/- 30 seconds to reduce the fingerprinting ability of observers. A timestamp of 0 means the sender doesn't know the current time (e.g. lacks a battery-backed RTC and access to an NTP server). Receivers MAY use a timestamp of 0 to decide whether to enforce time window restrictions. This can allow discovery in situations where one or more devices don't know the current time (e.g. location without Internet access).
+A timestamp in this document is the number of seconds since 1970-01-01 00:00:00 UTC (i.e. Unix Epoch Time). Timestamps sent in messages SHOULD be randomized by +/- 30 seconds to reduce the fingerprinting ability of observers. A timestamp of 0 means the sender doesn't know the current time (e.g. lacks a battery-backed RTC and access to an NTP server). Receivers MAY use a timestamp of 0 to decide whether to enforce time window restrictions. This can allow discovery in situations where one or more devices don't know the current time (e.g. location without Internet access).
 
 A timestamp is considered valid if it's within N seconds of the current time of the receiver. The RECOMMENDED value of N is 900 seconds (15 minutes) to allow peers to remain discoverable even after a large amount of clock drift.
 
 # Implicit Nonces
 
-The nonces in this document are integers that increment by 1 for each encryption. Nonces are never included in any message. Including nonces in messages would enable transactions to be easily tracked by following nonce 1, 2, 3, etc. This may seem futile if other layers of the system also leak trackable identifiers, such as IP addresses, but those problems can be solved by other documents. Random nonces could avoid tracking, but make replay protection difficult by requiring the receiver to remember previously received messages to detect a replay.
+The nonces in this document are integers that increment by 1 for each encryption. Nonces are never included in any message. Including nonces in messages would enable senders to be easily tracked by their predictable nonce sequence. This may seem futile if other layers of the system also leak trackable identifiers, such as IP addresses, but this document tries to avoid introducing any new privacy leaks in anticipation of leaks by other layers eventually being fixed. Random nonces could avoid tracking, but make replay protection difficult by requiring the receiver to remember previously received messages to detect a replay.
 
 One issue with implicit nonces and replay protection in general is handling lost messages. Message loss and reordering is expected and shouldn't cause complete failure. Accepting nonces within N of the expected nonce enables recovery from some loss and reordering. When a message is received, the expected nonce is checked first and then nonce + 1, nonce - 1, up to nonce +/- N. The RECOMMENDED value of N is 8 as a balance between privacy, robustness, and performance.
 
@@ -263,7 +257,7 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 |Announcement	|3		|See (#announcement).
 |Query			|4		|See (#query).
 |Answer			|5		|See (#answer).
-|Reserved		|6-255	|Reserved. Don't use when sending. Ignore if received.
+|Reserved		|6-255	|Reserved. Don't send. Ignore if received.
 
 # Message Fields {#message-fields}
 
@@ -284,7 +278,7 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 * Key derivation uses HKDF as specified in [@!RFC5869] with SHA-512 as the hash function.
 * Randoms and randomization MUST use cryptographic random numbers.
 
-Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if a friend of that friend is present on that network.
+Information leaks may still be possible in some situations. For example, an attacker could capture probes from a peer they've identified and replay them elsewhere within the allowed timestamp window. This could be used to determine if their friend is present on that network.
 
 The network infrastructure may leak identifiers in the form of persistent IP addresses and MAC addresses. Mitigating this requires changes at lower levels of the network stack, such as periodically changing IP addresses and MAC addresses.
 
@@ -302,5 +296,6 @@ The following are some of the things that still need to be specified and decided
 * Describe when to use the same EPK2 in a response to reduce churn on probe/response collisions.
 * Consider randomly answering probes for non-friends to mask real friends.
 * Design public service protocol to allow pairing.
+* Recommend random delays before sending responses to mask friend list sizes.
 
 {backmatter}

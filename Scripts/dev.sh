@@ -17,14 +17,14 @@ docs()
 	
 	if [[ "$FILTER" == "pd" ]] || [[ "$FILTER" == "" ]]; then
 		printf "Generate draft-bradley-dnssd-private-discovery...\n"
-		/usr/local/bin/mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > /tmp/draft-bradley-dnssd-private-discovery.xml &&
-		/usr/local/bin/xml2rfc --html /tmp/draft-bradley-dnssd-private-discovery.xml -o draft-bradley-dnssd-private-discovery.html &&
-		/usr/local/bin/xml2rfc --text /tmp/draft-bradley-dnssd-private-discovery.xml -o draft-bradley-dnssd-private-discovery.txt
+		mmark draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery.xml &&
+		xml2rfc --v3 --html draft-bradley-dnssd-private-discovery.xml -o draft-bradley-dnssd-private-discovery.html &&
+		xml2rfc --v3 --text draft-bradley-dnssd-private-discovery.xml -o draft-bradley-dnssd-private-discovery.txt
 		if [[ $? -ne 0 ]]; then
 			echo "### Generate draft-bradley-dnssd-private-discovery failed"
 			exit 1
 		fi
-		rm /tmp/draft-bradley-dnssd-private-discovery.*
+		rm draft-bradley-dnssd-private-discovery.xml
 	fi
 	printf "=== All Documentation Generated ===\n"
 }

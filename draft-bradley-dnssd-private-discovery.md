@@ -1,31 +1,43 @@
-% # To convert this file to text and HTML:
-% # mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-04.xml
-% # xml2rfc --text draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.txt
-% # xml2rfc --html draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.html
-% # 
-% Title			= "Private Discovery"
-% category		= "std"
-% are			= "Internet"
-% workgroup		= "Internet Engineering Task Force"
-% docName		= "draft-bradley-dnssd-private-discovery-04"
-% ipr			= "trust200902"
-% date			= 2020-08-02T00:00:00Z
-% [[author]]
-% initials		= "B."
-% surname		= "Bradley"
-% fullname		= "Bob Bradley"
-% organization	= "Apple Inc."
-% [author.address]
-% email			= "bradley@apple.com"
-% [author.address.postal]
-% street		= "One Apple Park Way"
-% city			= "Cupertino"
-% code			= "CA 95014"
-% country		= "USA"
+---
+To convert this file to text and HTML:
+mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-04.xml
+xml2rfc --text draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.txt
+xml2rfc --html draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.html
+---
+%%%
+title			= "Private Discovery"
+category		= "std"
+area			= "Internet"
+workgroup		= "Internet Engineering Task Force"
+docName			= "draft-bradley-dnssd-private-discovery-04"
+ipr				= "trust200902"
+date			= 2020-12-23T00:00:00Z
+
+[seriesInfo]
+name			= "Internet-Draft"
+value			= "draft-bradley-dnssd-private-discovery"
+stream			= "IETF"
+status			= "standard"
+
+[[author]]
+initials		= "B."
+surname			= "Bradley"
+fullname		= "Bob Bradley"
+organization	= "Apple Inc."
+
+[author.address]
+email			= "bradley@apple.com"
+
+[author.address.postal]
+street			= "One Apple Park Way"
+city			= "Cupertino"
+code			= "CA 95014"
+country			= "USA"
+%%%
 
 .# Abstract
 
-This document specifies a mechanism for advertising and discovering in a private manner.
+This document specifies a protocol for advertising and discovering devices and services while preserving privacy and confidentiality.
 
 {mainmatter}
 
@@ -43,26 +55,35 @@ The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL 
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
 document are to be interpreted as described in [@!RFC2119].
 
+"**Announcement**"
+: Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
+
+"**Answer**"
+: Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
+
 "**Friend**"
 : A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
 
+"**DH/ECDH**"
+: Diffie-Hellman key exchange. ECDH is the elliptic curve version of DH.
+
+"**LTPK**"
+: Long-term asymmetric public key. Used for verifying signatures.
+
+"**LTSK**"
+: Long-term asymmetric secret key. Used for generating signatures.
+
+"**Multicast**"
+: This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
+
 "**Probe**"
 : Unsolicited multicast message sent to find friends on the network.
-
-"**Announcement**"
-: Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
 
 "**Response**"
 : Solicited unicast message sent in response to a probe or announcement.
 
 "**Query**"
 : Unsolicited unicast message sent to get specific info from a peer.
-
-"**Answer**"
-: Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
-
-"**Multicast**"
-: This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
 
 "**Unicast**"
 : This term is used in the generic sense of sending a message that targets a single peer. It's not strictly required to be a UDP packet with a unicast destination address.
@@ -73,13 +94,13 @@ When multiple items are concatenated together, the symbol "||" (without quotes) 
 
 # Protocol
 
-There are two techniques used to preserve privacy and provide confidentiality in this document. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
+There are two techniques used to preserve privacy and provide confidentiality in this document. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random, signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
 
 The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
 
-Messages use a common header with a flags/type field. This indicates the format of the data after the header. Any data beyond the type-specific message body MUST be ignored. Future versions of this document may define additional data and this MUST NOT cause older message parsers to break. Updated formats that break compatibility with older parsers MUST use a new message type.
+Messages use a common header with a flags/type field. This indicates the format of the data after the header. Unknown message types MUST be ignored. Any data beyond the type-specific message body MUST be ignored. Future versions of this document may define additional data and this MUST NOT cause older message parsers to break. Updated formats that break compatibility with older parsers MUST use a new message type.
 
-This protocol avoids explicit version numbers. It's versioned using message types and flags. Flags are used for protocol extensions where a flag can indicate the presence of an optional field. A new message type is used when the old message type structure cannot reasonably be extended without breaking older parsers. For example, if the probe message in this document changed to use a different key type then older parsers would misinterpret the content of the message. A new type would be ignored by older, compliant parsers.
+This protocol avoids explicit version numbers. It's versioned using message types and flags. Flags are used for protocol extensions where a flag can indicate the presence of an optional field. A new message type is used when the old message type structure cannot reasonably be extended without breaking older parsers. For example, if the probe message in this document changed to use a different key type then older parsers would misinterpret the content of the message. A new type MUST be used in this case so it will be ignored by older, compliant parsers.
 
 Message format:
 ~~~~
@@ -93,15 +114,20 @@ Message format:
 
 ## Probe {#probe}
 
-A probe is sent via multicast to discover friends on the network. A probe contains a fresh, ephemeral public key (EPK1), a timestamp (TS1), and a signature (SIG1). This provides enough for a friend to identify the source, but doesn't allow non-friends to identify it.
+A probe is used to discover friends on the network. It provides enough info for a friend to identify the source, but doesn't allow non-friends to identify it. Probe procedure:
 
-Probe Fields:
+1. Generate a fresh ephemeral public key (EPK1) and its corresponding secret key (ESK1).
+2. Get the current timestamp (TS1). See Timestamps (#timestamps).
+3. Generate the payload as "Probe" || EPK1 || TS1 || "End".
+4. Generate a signature of the payload (SIG1) using the prober's long-term secret key (LTSK1).
+5. Generate the probe with EPK1 and SIG1.
+6. Send the probe via unicast to the sender of the probe.
 
-* EPK1 (Ephemeral Public Key 1).
-* TS1 (Timestamp 1). See Timestamps (#timestamps).
-* SIG1 (Signature of "Probe" || EPK1 || TS1 || "End").
+When a peer receives a probe, it does the following:
 
-When a peer receives a probe, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the probe. It SHOULD send a response to the friend.
+1. Verify TS1. If TS1 is outside the time window the message SHOULD be ignored.
+2. Verify SIG1 with the public key of each of its friends. If verification fails for all public keys, ignore the probe.
+3. If a verification succeeds for a friend's public key, send a response to that friend.
 
 Message format:
 ~~~~
@@ -109,12 +135,12 @@ Message format:
 +0   +-----+---------+
      |Flg=0| Type=1  | 1 byte
 +1   +-----+---------+---------------+
-     | EPK1 (Ephemeral Public Key 1) | 32 bytes 
+     | EPK1                          | 32 bytes 
      |                               |
 +33  +-------------------------------+
-     | TS1 (Timestamp 1)             | 4 bytes
+     | TS1                           | 4 bytes
 +37  +-------------------------------+
-     | SIG1 (Signature 1)            | 64 bytes
+     | SIG1                          | 64 bytes
      |                               |
      |                               |
      +-------------------------------+
@@ -123,16 +149,27 @@ Message format:
 
 ## Response {#response}
 
-A response contains a fresh, ephemeral public key (EPK2) and a symmetrically encrypted signature (ESIG2). The encryption key is derived by first generating a fresh ephemeral public key (EPK2) and its corresponding secret key (ESK2) and performing Diffie-Hellman (DH) using EPK1 and ESK2 to compute a shared secret. The shared secret is used to derive a symmetric session key (SSK2). A signature of the payload is generated (SIG2) using the responder's long-term secret key (LTSK2). The signature is encrypted with SSK2 (ESIG2). The nonce for ESIG2 is 1 and is not included in the response. The response is sent via unicast to the sender of the probe.
+A response is sent to answer a probe and provide keys for subsequent encryption of future queries. Response procedure:
 
-When the friend that sent the probe receives the response, it performs DH, symmetrically verifies ESIG2 and, if successful, decrypts it to reveal SIG2. It then tries to verify SIG2 with the public keys of all of its friends. If a verification succeeds for a public key then it knows which friend sent the response. If any steps fail, the response is ignored. If all steps succeed, it derives a session key (SSK1). Both session keys (SSK1 and SSK2) are remembered for subsequent communication with the friend.
+1. Generate a fresh ephemeral public key (EPK2) and its corresponding secret key (ESK2).
+2. Perform DH using EPK1 and ESK2 to compute a shared secret.
+3. Derive a symmetric session key (SSK2) from the shared secret.
+4. Generate the payload as "Response" || EPK2 || EPK1 || TS1 || "End".
+5. Generate a signature of the payload (SIG2) using the responder's long-term secret key (LTSK2).
+6. Encrypt the signature with SSK2 and a nonce of 1 to generate ESIG2.
+7. Generate the response with EPK2 and ESIG2.
+8. Send the response via unicast to the sender of the probe.
 
-Response Fields:
+When the friend that sent the probe receives the response, it does the following:
 
-* EPK2 (Ephemeral Public Key 2).
-* ESIG2 (Encrypted Signature of "Response" || EPK2 || EPK1 || TS1 || "End").
+1. Performs DH using EPK2 and EKS1 to compute a shared secret.
+2. Derive a symmetric session key (SSK2) from the shared secret for decryption.
+3. Symmetrically verify ESIG2 using SSK2. If this fails, ignore the response.
+4. Decrypt ESIG2 to reveal SIG2.
+5. Verify SIG2 with the public key of each of its friends. If verification fails for all public keys, ignore the response.
+6. Derive a a symmetric session key (SSK2) from the shared secret to encryption. Session keys (SSK1 and SSK2) are used for subsequent communication with the friend.
 
-Key Derivation values:
+Key Derivation details:
 
 * SSK1: HKDF-SHA-512 with Salt = "SSK1-Salt", Info = "SSK1-Info", Output size = 32 bytes.
 * SSK2: HKDF-SHA-512 with Salt = "SSK2-Salt", Info = "SSK2-Info", Output size = 32 bytes.
@@ -143,10 +180,10 @@ Message format:
 +0   +-----+---------+
      |Flg=0| Type=2  | 1 byte
 +1   +-----+---------+---------------+
-     | EPK2 (Ephemeral Public Key 2) | 32 bytes 
+     | EPK2                          | 32 bytes 
      |                               |
 +33  +-------------------------------+
-     | ESIG2 (Encrypted Signature 2) | 96 bytes
+     | ESIG2                         | 96 bytes
      |                               |
      |                               |
      +-------------------------------+
@@ -155,15 +192,20 @@ Message format:
 
 ## Announcement {#announcement}
 
-An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announcements are sent via multicast.
+An announcement indicates availability to friends on the network or if it has update(s). It is sent whenever a device joins a network (e.g. joins WiFi, plugged into Ethernet, etc.), its IP address changes, or when it has an update for one or more of its services. Announce procedure:
 
-Announcement Fields:
+1. Generate a fresh ephemeral public key (EPK1) and its corresponding secret key (ESK1).
+2. Get the current timestamp (TS1). See Timestamps (#timestamps).
+3. Generate the payload as "Announcement" || EPK1 || TS1 || "End".
+4. Generate a signature of the payload (SIG1) using the announcer's long-term secret key (LTSK1).
+5. Generate the announcement with EPK1 and SIG1.
+6. Send the announcement via multicast.
 
-* EPK1 (Ephemeral Public Key 1).
-* TS1 (Timestamp 1). See Timestamps (#timestamps).
-* SIG1 (Signature of "Announcement" || EPK1 || TS1 || "End").
+When a peer receives an announcement, it does the following:
 
-When a peer receives an announcement, it verifies TS1. If TS1 is outside the time window then it SHOULD be ignored. It then attempts to verify SIG1 with the public key of each of its friends. If verification fails for all public keys then it ignores the probe. If a verification succeeds for a public key then it knows which friend sent the announcement.
+1. Verify TS1. If TS1 is outside the time window the message SHOULD be ignored.
+2. Verify SIG1 with the public key of each of its friends. If verification fails for all public keys, ignore the announcement.
+3. If a verification succeeds for a friend's public key, it knows which friend sent the announcement.
 
 Message format:
 ~~~~
@@ -171,12 +213,12 @@ Message format:
 +0   +-----+---------+
      |Flg=0| Type=3  | 1 byte
 +1   +-----+---------+---------------+
-     | EPK1 (Ephemeral Public Key 1) | 32 bytes 
+     | EPK1                          | 32 bytes 
      |                               |
 +33  +-------------------------------+
-     | TS1 (Timestamp 1)             | 4 bytes
+     | TS1                           | 4 bytes
 +37  +-------------------------------+
-     | SIG1 (Signature 1)            | 64 bytes
+     | SIG1                          | 64 bytes
      |                               |
      |                               |
      +-------------------------------+
@@ -185,13 +227,18 @@ Message format:
 
 ## Query {#query}
 
-A query is sent via unicast to request specific info from a friend. The query data (MSG1) is encrypted with the symmetric session key (SSK1 for the original prober or SSK2 for the original responder) for the target friend previously generated via the probe/response exchange. This encrypted field is EMSG1. The nonce for EMSG1 is 1 larger than the last nonce used with this symmetric key and is not included in the query. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The query is sent via unicast to the friend.
+A query is sent to request specific info from a friend. Query procedure:
 
-When the friend receives a query, it symmetrically verifies EMSG1 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the query is ignored, If verification succeeds, the query is processed.
+1. Generate query data (MSG1).
+2. Get the symmetric session key for the target friend. This is SSK1 for the original prober or SSK2 for the original responder.
+3. Encrypt MSG1 with the symmetric session key to generate EMSG1. The nonce is 1 larger than the last nonce used with this symmetric key (e.g. nonce of 2 if this is the first message to this friend after the probe/response).
+4. Send the query via unicast to the friend.
 
-Query Fields:
+When the friend receives a query, it does the following:
 
-* EMSG1 (Encrypted query data).
+1. Symmetrically verify EMSG1 against every active session's key. If this fails for all keys, ignore the query.
+2. Decrypt EMSG1 to reveal MSG1.
+3. Process the query and possibly send an answer.
 
 Message format:
 ~~~~
@@ -207,13 +254,18 @@ Message format:
 
 ## Answer {#answer}
 
-An answer is sent via unicast in response to a query from a friend. The answer data (MSG2) is encrypted with the symmetric session key of the destination friend (SSK1 it was the original prober or SSK2 if it was the original responder from the previous probe/response exchange). This encrypted field is EMSG2. The nonce for EMSG2 is 1 larger than the last nonce used with this symmetric key and is not included in the answer. For example, if this is the first message sent to this friend after the probe/response then the nonce would be 2. The answer is sent via unicast to the friend.
+An answer is sent in response to a query from a friend. Answer procedure:
 
-When the friend receives an answer, it symmetrically verifies EMSG2 against every active session's key and, if one is successful (which also identifies the friend), it decrypts the field. If verification fails, the answer is ignored, If verification succeeds, the answer is processed.
+1. Generate answer data (MSG2).
+2. Get the querying friend's symmetric session key. This is SSK1 for the original prober or SSK2 for the original responder.
+3. Encrypt MSG2 the symmetric session key to generate EMSG2. The nonce is 1 larger than the last nonce used with this symmetric key (e.g. nonce of 2 if this is the first message to this friend after the probe/response).
+4. Send the answer via unicast to the querying friend.
 
-Answer Fields:
+When the querying friend receives the answer, it does the following:
 
-* EMSG2 (Encrypted answer data).
+1. Symmetrically verify EMSG2 against every active session's key. If this fails for all keys, ignore the answer.
+2. Decrypt EMSG2 to reveal MSG2.
+3. Process the answer.
 
 Message format:
 ~~~~
@@ -257,7 +309,7 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 |Announcement	|3		|See (#announcement).
 |Query			|4		|See (#query).
 |Answer			|5		|See (#answer).
-|Reserved		|6-255	|Reserved. Don't send. Ignore if received.
+|Reserved		|6-31	|Reserved. Don't send. Ignore if received.
 
 # Message Fields {#message-fields}
 

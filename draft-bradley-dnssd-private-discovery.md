@@ -11,7 +11,7 @@ area			= "Internet"
 workgroup		= "Internet Engineering Task Force"
 docName			= "draft-bradley-dnssd-private-discovery-04"
 ipr				= "trust200902"
-date			= 2020-12-23T00:00:00Z
+date			= 2020-12-27T00:00:00Z
 
 [seriesInfo]
 name			= "Internet-Draft"
@@ -94,7 +94,7 @@ When multiple items are concatenated together, the symbol "||" (without quotes) 
 
 # Protocol
 
-There are two techniques used to preserve privacy and provide confidentiality in this document. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random, signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
+This document uses two techniques to preserve privacy and provide confidentiality. The first is announcing, probing, and responding with only enough info to allow a peer with your public key to detect that it's you while hiding your identity from peers without your public key. This technique uses a fresh random, signed with your private key using a signature algorithm that doesn't reveal your public key. The second technique is to query and answer in a way that only a specific friend can read the data. This uses ephemeral key exchange and symmetric encryption and authentication.
 
 The general flow of the protocol is a device sends multicast probes to discover friend devices on the network. If friend devices are found, it directly communicates with them via unicast queries and answers. Announcements are sent to report availability and when services are added or removed.
 
@@ -120,7 +120,7 @@ A probe is used to discover friends on the network. It provides enough info for 
 2. Get the current timestamp (TS1). See Timestamps (#timestamps).
 3. Generate the payload as "Probe" || EPK1 || TS1 || "End".
 4. Generate a signature of the payload (SIG1) using the prober's long-term secret key (LTSK1).
-5. Generate the probe with EPK1 and SIG1.
+5. Generate the probe with EPK1, TS1, and SIG1.
 6. Send the probe via unicast to the sender of the probe.
 
 When a peer receives a probe, it does the following:
@@ -167,7 +167,7 @@ When the friend that sent the probe receives the response, it does the following
 3. Symmetrically verify ESIG2 using SSK2. If this fails, ignore the response.
 4. Decrypt ESIG2 to reveal SIG2.
 5. Verify SIG2 with the public key of each of its friends. If verification fails for all public keys, ignore the response.
-6. Derive a a symmetric session key (SSK2) from the shared secret to encryption. Session keys (SSK1 and SSK2) are used for subsequent communication with the friend.
+6. Derive a a symmetric session key (SSK1) from the shared secret to encryption. Session keys (SSK1 and SSK2) are used for subsequent communication with the friend.
 
 Key Derivation details:
 
@@ -198,7 +198,7 @@ An announcement indicates availability to friends on the network or if it has up
 2. Get the current timestamp (TS1). See Timestamps (#timestamps).
 3. Generate the payload as "Announcement" || EPK1 || TS1 || "End".
 4. Generate a signature of the payload (SIG1) using the announcer's long-term secret key (LTSK1).
-5. Generate the announcement with EPK1 and SIG1.
+5. Generate the announcement with EPK1, TS1, and SIG1.
 6. Send the announcement via multicast.
 
 When a peer receives an announcement, it does the following:

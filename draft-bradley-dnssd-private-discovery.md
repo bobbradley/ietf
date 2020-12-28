@@ -9,9 +9,9 @@ title			= "Private Discovery"
 category		= "std"
 area			= "Internet"
 workgroup		= "Internet Engineering Task Force"
-docName			= "draft-bradley-dnssd-private-discovery-04"
+docName			= "draft-bradley-dnssd-private-discovery-05"
 ipr				= "trust200902"
-date			= 2020-12-27T00:00:00Z
+date			= 2020-12-28T00:00:00Z
 
 [seriesInfo]
 name			= "Internet-Draft"

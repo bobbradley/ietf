@@ -24,7 +24,6 @@ docs()
 			echo "### Generate draft-bradley-dnssd-private-discovery failed"
 			exit 1
 		fi
-		rm draft-bradley-dnssd-private-discovery.xml
 	fi
 	printf "=== All Documentation Generated ===\n"
 }

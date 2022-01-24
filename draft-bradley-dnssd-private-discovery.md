@@ -54,42 +54,23 @@ The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL 
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
 document are to be interpreted as described in [@!RFC2119].
 
-"**Announcement**"
-: Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
-
-"**Answer**"
-: Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
-
-"**Friend**"
-: A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
-
-"**DH/ECDH**"
-: Diffie-Hellman key exchange. ECDH is the elliptic curve version of DH.
-
-"**LTPK**"
-: Long-term asymmetric public key. Used for verifying signatures.
-
-"**LTSK**"
-: Long-term asymmetric secret key. Used for generating signatures.
-
-"**Multicast**"
-: This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
-
-"**Probe**"
-: Unsolicited multicast message sent to find friends on the network.
-
-"**Response**"
-: Solicited unicast message sent in response to a probe or announcement.
-
-"**Query**"
-: Unsolicited unicast message sent to get specific info from a peer.
-
-"**Unicast**"
-: This term is used in the generic sense of sending a message that targets a single peer. It's not strictly required to be a UDP packet with a unicast destination address.
-
 Multi-byte values are encoded from the most significant byte to the least significant byte (big endian).
 
 When multiple items are concatenated together, the symbol "||" (without quotes) between each item is used to indicate this. For example, a combined item of A followed by B followed by C would be written as "A || B || C".
+
+|:--------------|:----
+|Announcement	|Unsolicited multicast message sent to inform friends on the network that you have become available or have updated data.
+|Answer			|Solicited unicast message sent in response to a query to provide info or indicate the lack of info.
+|Friend			|A peer you have a cryptographic relationship with. Specifically, that you have the peer's LTPK.
+|DH/ECDH		|Diffie-Hellman key exchange. ECDH is the elliptic curve version of DH.
+|LTPK			|Long-term asymmetric public key. Used for verifying signatures.
+|LTSK			|Long-term asymmetric secret key. Used for generating signatures.
+|Multicast		|This term is used in the generic sense of sending a message that targets 0 or more peers. It's not strictly required to be a UDP packet with a multicast destination address. It could be sent via TCP or some other transport to a router that repeats the message via unicast to each peer.
+|Probe			|Unsolicited multicast message sent to find friends on the network.
+|Response		|Solicited unicast message sent in response to a probe or announcement.
+|Query			|Unsolicited unicast message sent to get specific info from a peer.
+|Unicast		|This term is used in the generic sense of sending a message that targets a single peer. It's not strictly required to be a UDP packet with a unicast destination address.
+Table: Glossary
 
 # Protocol
 
@@ -303,6 +284,7 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 |Query			|4		|See (#query).
 |Answer			|5		|See (#answer).
 |Reserved		|6-31	|Reserved. Don't send. Ignore if received.
+Table: Message types
 
 # Message Fields {#message-fields}
 
@@ -313,6 +295,7 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 |SIG1/SIG2		|Signature. 64-byte Ed25519 signature.
 |ESIG1/ESIG2	|Encrypted signature. Ed25519 signature encrypted with AES-SIV-CMAC-512.
 |EMSG1/EMSG2	|Encrypted message. Message encrypted with AES-SIV-CMAC-512.
+Table: Message fields
 
 # Security Considerations
 

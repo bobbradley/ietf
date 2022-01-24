@@ -1,9 +1,8 @@
----
-To convert this file to text and HTML:
-mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-04.xml
-xml2rfc --text draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.txt
-xml2rfc --html draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.html
----
+[//]: # (To convert this file to text and HTML:)
+[//]: # (mmark -xml2 -page draft-bradley-dnssd-private-discovery.md > draft-bradley-dnssd-private-discovery-04.xml)
+[//]: # (xml2rfc --text draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.txt)
+[//]: # (xml2rfc --html draft-bradley-dnssd-private-discovery-04.xml -o draft-bradley-dnssd-private-discovery-04.html)
+
 %%%
 title			= "Private Discovery"
 category		= "std"
@@ -11,7 +10,7 @@ area			= "Internet"
 workgroup		= "Internet Engineering Task Force"
 docName			= "draft-bradley-dnssd-private-discovery"
 ipr				= "trust200902"
-date			= 2020-12-28T00:00:00Z
+date			= 2022-01-24T00:00:00Z
 
 [seriesInfo]
 name			= "Internet-Draft"
@@ -156,7 +155,7 @@ A response is sent to answer a probe and provide keys for subsequent encryption 
 3. Derive a symmetric session key (SSK2) from the shared secret.
 4. Generate the payload as "Response" || EPK2 || EPK1 || TS1 || "End".
 5. Generate a signature of the payload (SIG2) using the responder's long-term secret key (LTSK2).
-6. Encrypt the signature with SSK2 and a nonce of 1 to generate ESIG2.
+6. Encrypt the signature with SSK2 to generate ESIG2.
 7. Generate the response with EPK2 and ESIG2.
 8. Send the response via unicast to the sender of the probe.
 
@@ -183,11 +182,11 @@ Message format:
      | EPK2                          | 32 bytes 
      |                               |
 +33  +-------------------------------+
-     | ESIG2                         | 96 bytes
+     | ESIG2                         | 80 bytes
      |                               |
      |                               |
      +-------------------------------+
-+129 Total bytes
++113 Total bytes
 ~~~~
 
 ## Announcement {#announcement}
@@ -231,7 +230,7 @@ A query is sent to request specific info from a friend. Query procedure:
 
 1. Generate query data (MSG1).
 2. Get the symmetric session key for the target friend. This is SSK1 for the original prober or SSK2 for the original responder.
-3. Encrypt MSG1 with the symmetric session key to generate EMSG1. The nonce is 1 larger than the last nonce used with this symmetric key (e.g. nonce of 2 if this is the first message to this friend after the probe/response).
+3. Encrypt MSG1 with the symmetric session key to generate EMSG1.
 4. Send the query via unicast to the friend.
 
 When the friend receives a query, it does the following:
@@ -258,7 +257,7 @@ An answer is sent in response to a query from a friend. Answer procedure:
 
 1. Generate answer data (MSG2).
 2. Get the querying friend's symmetric session key. This is SSK1 for the original prober or SSK2 for the original responder.
-3. Encrypt MSG2 the symmetric session key to generate EMSG2. The nonce is 1 larger than the last nonce used with this symmetric key (e.g. nonce of 2 if this is the first message to this friend after the probe/response).
+3. Encrypt MSG2 the symmetric session key to generate EMSG2.
 4. Send the answer via unicast to the querying friend.
 
 When the querying friend receives the answer, it does the following:
@@ -285,15 +284,9 @@ A timestamp in this document is the number of seconds since 1970-01-01 00:00:00 
 
 A timestamp is considered valid if it's within N seconds of the current time of the receiver. The RECOMMENDED value of N is 900 seconds (15 minutes) to allow peers to remain discoverable even after a large amount of clock drift.
 
-# Implicit Nonces
-
-The nonces in this document are integers that increment by 1 for each encryption. Nonces are never included in any message. Including nonces in messages would enable senders to be easily tracked by their predictable nonce sequence. This may seem futile if other layers of the system also leak trackable identifiers, such as IP addresses, but this document tries to avoid introducing any new privacy leaks in anticipation of leaks by other layers eventually being fixed. Random nonces could avoid tracking, but make replay protection difficult by requiring the receiver to remember previously received messages to detect a replay.
-
-One issue with implicit nonces and replay protection in general is handling lost messages. Message loss and reordering is expected and shouldn't cause complete failure. Accepting nonces within N of the expected nonce enables recovery from some loss and reordering. When a message is received, the expected nonce is checked first and then nonce + 1, nonce - 1, up to nonce +/- N. The RECOMMENDED value of N is 8 as a balance between privacy, robustness, and performance.
-
 # Re-keying and Limits
 
-Re-keying is a hedge against key compromise. The underlying algorithms have limits that far exceed reasonable usage (e.g. 96-bit nonces), but if a key was revealed then we want to reduce the damage by periodically re-keying.
+Re-keying is a hedge against key compromise. The underlying algorithms have limits that far exceed reasonable usage, but if a key was revealed then we want to reduce the damage by periodically re-keying.
 
 Probes are periodically re-sent with a new ephemeral public key in case the previous key pair was compromised. The RECOMMENDED maximum probe ephemeral public key lifetime is 20 hours. This is close to 1 day since people often repeat actions on a daily basis, but with some leeway for natural variations. If a probe ephemeral public key is re-generated for other reasons, such as joining a WiFi network, the refresh timer is reset.
 
@@ -318,15 +311,15 @@ Session keys are periodically re-key'd in case a symmetric key was compromised. 
 |EPK1/EPK2		|Ephemeral Public Key. 32-byte Curve25519 public key.
 |TS1			|Timestamp. 4-byte timestamp. See Timestamps (#timestamps).
 |SIG1/SIG2		|Signature. 64-byte Ed25519 signature.
-|ESIG1/ESIG2	|Encrypted signature. Ed25519 signature encrypted with ChaCha20-Poly1305. Formatted as the 64-byte encrypted portion followed by a 16-byte MAC (96 bytes total).
-|EMSG1/EMSG2	|Encrypted message. Message encrypted with ChaCha20-Poly1305. Formatted as the N-byte encrypted portion followed by a 16-byte MAC (N + 16 bytes total).
+|ESIG1/ESIG2	|Encrypted signature. Ed25519 signature encrypted with AES-SIV-CMAC-512.
+|EMSG1/EMSG2	|Encrypted message. Message encrypted with AES-SIV-CMAC-512.
 
 # Security Considerations
 
 * Privacy considerations are specified in draft-cheshire-dnssd-privacy-considerations.
 * Ephemeral key exchange uses elliptic curve Diffie-Hellman (ECDH) with Curve25519 as specified in [@!RFC7748].
 * Signing and verification uses Ed25519 as specified in [@!RFC8032].
-* Symmetric encryption uses ChaCha20-Poly1305 as specified in [@!RFC7539].
+* Symmetric encryption uses AES-SIV-CMAC-512 as specified in [@!RFC5297].
 * Key derivation uses HKDF as specified in [@!RFC5869] with SHA-512 as the hash function.
 * Randoms and randomization MUST use cryptographic random numbers.
 
